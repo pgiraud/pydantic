@@ -858,6 +858,30 @@ def test_secrets_dotenv_precedence(tmp_path):
     assert Settings(_env_file=e).dict() == {'foo': 'foo_env_value_str'}
 
 
+def test_secrets_recursive(tmp_path):
+    s = tmp_path / 'foo_bar_password'
+    s.write_text('secret_value_str')
+
+    class Bar(BaseSettings):
+        password: Optional[str]
+
+        class Config:
+            env_prefix = 'bar_'
+
+    class Foo(BaseSettings):
+        bar: Bar = Bar()
+
+        class Config:
+            env_prefix = 'foo_'
+
+    class Settings(BaseSettings):
+        foo: Foo = Foo()
+
+    assert Settings(foo={'bar': {'_secrets_dir': tmp_path}}).dict() == {
+        'foo': {'bar': {'password': 'secret_value_str'}}
+    }
+
+
 def test_external_settings_sources_precedence(env):
     def external_source_0(settings: BaseSettings) -> Dict[str, str]:
         return {'apple': 'value 0', 'banana': 'value 2'}
